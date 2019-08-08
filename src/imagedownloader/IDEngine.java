@@ -8,15 +8,16 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
-import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 
-class IDEngine implements ActionListener, ItemListener {
+class IDEngine implements ActionListener, ItemListener, PropertyChangeListener {
     
-    IDView parent;
+    IDView parent; // a reference to the IDView
     SearchWorker searchWorker;
     DownloadWorker downloadWorker;
 	
+    // Constructor stores the reference to the 
+    // IDView window in the member variable parent
     IDEngine(IDView parent){        
         this.parent=parent;
     }
@@ -24,91 +25,97 @@ class IDEngine implements ActionListener, ItemListener {
     private void searchImages(){
         parent.removeThumbnails();
 	parent.setDwnlButton(false);
-	parent.setButtons(false,false);
-	String displayFieldText=parent.getDisplayFieldText();
-	int imgWidth=parent.getMinWidth ();
-	int imgHeight=parent.getMinHeight ();
-        searchWorker = new SearchWorker (displayFieldText, imgWidth, imgHeight);
-        searchWorker.addPropertyChangeListener(new PropertyChangeListener() {
-            @Override
-            public void propertyChange(PropertyChangeEvent e) {
-                String name = e.getPropertyName();
-                if ("progress".equalsIgnoreCase(name)) {
-                    //int value = (int) arg0.getNewValue();
-                    //parent.setProgress(value); 
-                }else if("state".equalsIgnoreCase(name)){
-                    if (!searchWorker.isDone()) {
-                        parent.setSrchButton(false);
-                        parent.setStatus(" Searching...");
-                        parent.setProgress(true);
-                    }else{
-                        try {
-                            parent.setSrchButton(true);
-                            parent.setStatus(" Done!");
-                            parent.setProgress(false);
-                            parent.addThumbnails((ImageIcon[]) searchWorker.get());
-                        }catch(InterruptedException arg0) {
-                            System.out.println(arg0.getMessage());
-                        }catch(ExecutionException arg0) {
-                            System.out.println(arg0.getMessage());
-                        }
-                    } 
-                }
-            }
-        });
-        searchWorker.execute();
+	parent.setCheckButton(false,false);
+        
+        // Background task for searching images.
+        String url=parent.getURL();
+	int minWidth=parent.getMinWidth();
+	int minHeight=parent.getMinHeight();
+        
+        searchWorker = new SearchWorker (url, minWidth, minHeight);
+        searchWorker.addPropertyChangeListener(this);      
+        searchWorker.execute(); // Start searching the images in the background
     }
     
     private void downloadImages(){
         String savePath=parent.getSavePath();
-        ArrayList <String> sUrl = parent.getSelected();
-        DownloadWorker downloadWorker = new DownloadWorker (savePath, sUrl);
-        downloadWorker.addPropertyChangeListener(new PropertyChangeListener() {
-            @Override
-                public void propertyChange(PropertyChangeEvent e) {
-                    String name = e.getPropertyName();
-                    if ("progress".equalsIgnoreCase(name)) {
-                        
-                    }else if ("state".equalsIgnoreCase(name)) {
-                        if (!downloadWorker.isDone()) {
-                            parent.setSrchButton(false);
-                            parent.setDwnlButton(false);
-                            parent.setStatus(" Downloading...");
-                            parent.setProgress(true);
-                        }else{
-                            parent.setSrchButton(true);
-                            parent.setDwnlButton(true);
-                            parent.setStatus(" Done!");
-                            parent.setProgress(false);
-                        }
-                    } 
-                }
-        });
-        downloadWorker.execute();
+        ArrayList <String> urls = parent.getSelected();
+        
+        // Background task for downloading images.
+        downloadWorker = new DownloadWorker (savePath, urls);
+        downloadWorker.addPropertyChangeListener(this);
+        downloadWorker.execute(); // Start downloading the images in the background
     }
 
+    // This method gets called when a state property is changed
+    @Override
+    public void propertyChange(PropertyChangeEvent e) {
+                   
+            // Get the source object of this action
+            if (e.getSource().equals(searchWorker)){
+                
+                // Returns true if this task completed
+                if (!searchWorker.isDone()) {
+                    parent.setSrchButton(false);
+                    parent.setStatus(" Searching...");
+                    parent.setProgress(true);
+                }else{
+                    parent.setSrchButton(true);
+                    parent.setStatus(" Done!");
+                    parent.setProgress(false);
+                    try {
+                        parent.addThumbnails(searchWorker.get()); // Returns all images we have got
+                    }catch(InterruptedException | ExecutionException ex) {
+                        System.out.println(ex.getMessage());
+                    }
+                }
+            }else{
+                if (!downloadWorker.isDone()) {
+                    parent.setSrchButton(false);
+                    parent.setDwnlButton(false);
+                    parent.setStatus(" Downloading...");
+                    parent.setProgress(true);
+                }else{
+                    parent.setSrchButton(true);
+                    parent.setDwnlButton(true);
+                    parent.setStatus(" Done!");
+                    parent.setProgress(false);
+                }
+            }
+    }
+    
+    // Invoked when a button has been pressed
     @Override
     public void actionPerformed(ActionEvent e) {
-        if ("Search" == e.getActionCommand()){
-            searchImages();
-        } else if("Download" == e.getActionCommand()){
-            downloadImages();
-        } else if ("Select all" == e.getActionCommand()) {
-            JCheckBox checkButton = (JCheckBox)e.getSource();
-            if (checkButton.isSelected())
-                parent.setAllSelected (true);
-            else parent.setAllSelected (false);
+        
+        // Get the source object of this action
+        switch (e.getActionCommand()) {
+            case "Search":
+                searchImages();
+                break;
+            case "Download":
+                downloadImages();
+                break;
+            case "Select all":
+                JCheckBox checkButton = (JCheckBox)e.getSource();
+                if (checkButton.isSelected())
+                    parent.setAllSelected(true);
+                else parent.setAllSelected(false);
+                break;
+            default:
+                break;
         }
     }
-
+    
+    // Invoked when a thumb has been selected or deselected
     @Override
     public void itemStateChanged(ItemEvent e) {
         if (!parent.getSelected().isEmpty())
             parent.setDwnlButton(true);
         else parent.setDwnlButton(false);
         if (parent.getSelected().size()< parent.getComponents().length) 
-            parent.setButtons(true, false);
-        else parent.setButtons(true, true);
+            parent.setCheckButton(true, false);
+        else parent.setCheckButton(true, true);
         
     }
     

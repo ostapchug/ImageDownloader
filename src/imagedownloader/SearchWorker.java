@@ -13,80 +13,102 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-class SearchWorker extends SwingWorker<ImageIcon[], Void>  {
-    String displayFieldText;
-    int imgWidth;
-    int imgHeight;
-    
-    SearchWorker(String displayFieldText, int imgWidth, int imgHeight){
-        this.displayFieldText=displayFieldText;
-        this.imgWidth=imgWidth;
-        this.imgHeight=imgHeight;
-    }
+/*
+SwingWorker is a generic class, with two type parameters. 
+The first type parameter specifies a return type for doInBackground, 
+and also for the get method, which is invoked by other threads to retrieve 
+the object returned by doInBackground. SwingWorker's second type parameter 
+specifies a type for interim results returned while the background task is 
+still active. Since this class doesn't return interim results, 
+Void is used as a placeholder.
+*/
 
+class SearchWorker extends SwingWorker<ImageIcon[], Void>  {
+    String url;
+    int minWidth;
+    int minHeight;
+    
+    SearchWorker(String url, int minWidth, int minHeight){
+        this.url=url;
+        this.minWidth=minWidth;
+        this.minHeight=minHeight;
+    }
+    
+    
+    // Executes in a background thread
     @Override
     protected ImageIcon[] doInBackground() throws Exception {
-        ArrayList<String> str = searchImages (displayFieldText);
-        setProgress(50);
-        ImageIcon[] imageIcon = readImages (str);
-        setProgress(100);
-        return imageIcon;
+    
+        return readImages(searchImages(url),minWidth, minHeight);
     }
     
-    @Override
-    public void done() {
-        try {
-            get();
-        } catch (Exception ignore) {
-        }
-    }
-
-    private ArrayList<String> searchImages(String str) {
-        ArrayList <String> url = new ArrayList <String> ();
-        try{
-            Document doc = Jsoup.connect(str).get();
-            Elements images = doc.select("a");
-            
-            for (Element el: images) {
-                String imageUrl = el.attr("abs:href");
-                if(imageUrl.toLowerCase().endsWith(".jpg")||imageUrl.toLowerCase().endsWith(".png")) {
-                    url.add(imageUrl);
-                }
-            }
-            
-            Elements images1 = doc.select("img");
-            for (Element el1: images1) {
-                String imageUrl1 = el1.attr("abs:src");
-                url.add(imageUrl1);
-            }  
-        }catch (IOException e){
-            System.out.println(e.getMessage());
-        }
-        return url; 
-    }
-
-    private ImageIcon[] readImages(ArrayList<String> str) {
-        URL url1 = null;
-        BufferedImage image;
-        ImageIcon imageIcon [] = new ImageIcon[str.size()];
+    // Fetches the page from a URL, and extracts images
+    private ArrayList<String> searchImages(String url) throws IOException {
+        ArrayList <String> urls = new ArrayList <> ();
         
-        try{
-            for (int i=0; i<imageIcon.length; i++) {
-                url1 = new URL (str.get(i));
-                System.out.println(str.get(i));
-		image = ImageIO.read(url1);
-                if(image != null) {
-                    if(image.getWidth()>imgWidth&&image.getHeight()>imgHeight) {
-                        imageIcon[i] = new ImageIcon(image.getScaledInstance(250, -250, Image.SCALE_DEFAULT));
-                        imageIcon[i].setDescription(str.get(i));
-                    }
-                }else{
-                    System.out.println("Can't read image!");
-                }
+        // The connect() method creates a new connection, and get() fetches and parses a HTML file
+        Document doc = Jsoup.connect(url).get();
+        
+        // Returns a list of matching elements 
+        Elements links = doc.select("a[href]");
+        Elements imports = doc.select("link[href]");
+        Elements images = doc.select("img[src]");
+        
+        // Extract attributes from elements
+        // To get an absolute URL, there is a attribute key prefix abs:
+        // that will cause the attribute value to be resolved against the document's base URI 
+        for (Element el: links) {
+            String imageUrl = el.attr("abs:href");
+            if(imageUrl.toLowerCase().endsWith(".jpg")||imageUrl.toLowerCase().endsWith(".png")) {
+                urls.add(imageUrl);
             }
-        }catch(IOException e) {
-            System.out.println(e.getMessage());
         }
+        
+        for (Element el: imports) {
+            String imageUrl = el.attr("abs:href");
+            if(imageUrl.toLowerCase().endsWith(".jpg")||imageUrl.toLowerCase().endsWith(".png")) {
+                urls.add(imageUrl);
+            }
+        }
+        
+        for (Element el: images) {
+            String imageUrl = el.attr("abs:src");
+            urls.add(imageUrl);
+        }
+        
+        return urls; 
+    }
+    
+    // Loads the images into an ImageIcon array, and returns a reference to it
+    private ImageIcon[] readImages(ArrayList<String> urls, int w, int h) throws IOException {
+        URL url = null;
+        BufferedImage image;
+        ImageIcon imageIcon [] = new ImageIcon[urls.size()];
+        
+        for (int i=0; i<imageIcon.length; i++) {
+            
+            // Creates a URL object from the String representation
+            url = new URL (urls.get(i));
+            
+            // Source image to scale                       
+            image = ImageIO.read(url);
+            
+            // Create an ImageIcon if the image is exist
+            if(image != null) {
+                
+                // Create an ImageIcon if the image parameters is valid
+                if(image.getWidth()>=w && image.getHeight()>=h) {
+                    
+                    // Resizes an image then creates an ImageIcon
+                    imageIcon[i] = new ImageIcon(image.getScaledInstance(250, -250, Image.SCALE_DEFAULT));
+                    
+                    // Sets image url as description for further processing
+                    imageIcon[i].setDescription(urls.get(i));
+                }
+            }else{
+                System.out.println("Can't read image!");
+            }
+        }    
         return imageIcon;
     }
 }

@@ -16,6 +16,7 @@ public class IDView {
     private JTextField urlField;
     private JButton srchButton;
     private JButton dwnlButton;
+    private JButton cancelButton;
     private SpinnerNumberModel widthSNM;
     private SpinnerNumberModel heightSNM;
     private JSpinner widthSpinner;
@@ -29,20 +30,20 @@ public class IDView {
     
     // Get the current working directory and set it as default open path
     private File userDir = new File(System.getProperty("user.dir"));
-    private JFileChooser fc = new JFileChooser(userDir);
+    private JFileChooser pathChooser = new JFileChooser(userDir);
     
     IDView(){
         // Create the main panel
         windowContent= new JPanel();
         
         // Set a layout manager for this panel
-	BorderLayout bl = new BorderLayout();
-	windowContent.setLayout(bl);
+	BorderLayout windowLayout = new BorderLayout();
+	windowContent.setLayout(windowLayout);
         
         // Create the control panel
         controlPanel = new JPanel();
-	FlowLayout fl =new FlowLayout(FlowLayout.LEADING);
-	controlPanel.setLayout(fl);
+	FlowLayout controlLayout =new FlowLayout(FlowLayout.LEADING);
+	controlPanel.setLayout(controlLayout);
         
         // Create and add controls to the panel
         JLabel urlLabel= new JLabel("Enter the URL:");
@@ -50,14 +51,14 @@ public class IDView {
 	urlField = new JTextField(25);
 	controlPanel.add(urlField);
         
-        JLabel l1= new JLabel("Min Width:");
-	controlPanel.add(l1);	
+        JLabel widthLabel= new JLabel("Min Width:");
+	controlPanel.add(widthLabel);	
 	widthSNM = new SpinnerNumberModel(350, 1, 5000, 1);
 	widthSpinner = new JSpinner(widthSNM);
 	controlPanel.add(widthSpinner);
         
-        JLabel l2= new JLabel("Min Height:");
-	controlPanel.add(l2);	
+        JLabel heightLabel= new JLabel("Min Height:");
+	controlPanel.add(heightLabel);	
 	heightSNM = new SpinnerNumberModel(500, 1, 5000, 1);
 	heightSpinner = new JSpinner(heightSNM);
 	controlPanel.add(heightSpinner);
@@ -76,13 +77,18 @@ public class IDView {
 	checkButton.setEnabled(false);
 	controlPanel.add(checkButton);
         
+        cancelButton= new JButton("Cancel");
+	cancelButton.addActionListener(idEngine);
+	controlPanel.add(cancelButton);
+	cancelButton.setEnabled(false);
+        
         // Add the control panel to the main panel
         windowContent.add("North",controlPanel);
         
         // Create the status panel
        	statusPanel = new JPanel();
-	GridLayout gl = new GridLayout(1,2);
-	statusPanel.setLayout(gl);
+	GridLayout statusLayout = new GridLayout(1,2);
+	statusPanel.setLayout(statusLayout);
         
         statusLabel = new JLabel();	
         statusPanel.add(statusLabel);
@@ -94,8 +100,8 @@ public class IDView {
         
         // Create the thumbnail panel
         thumbPanel = new JPanel();
-	WrapLayout wl = new WrapLayout(WrapLayout.LEADING); // FlowLayout subclass that fully supports wrapping of components
-	thumbPanel.setLayout(wl);
+	WrapLayout thumbLayout = new WrapLayout(WrapLayout.LEADING); // FlowLayout subclass that fully supports wrapping of components
+	thumbPanel.setLayout(thumbLayout);
         
         // Create the scroll panel and add the thumbnail panel to it
         scrollPanel = new JScrollPane(thumbPanel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -109,7 +115,7 @@ public class IDView {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
        
         // Set the minimum size and make the window visible
-        frame.setMinimumSize(new Dimension(960, 540));        
+        frame.setMinimumSize(new Dimension(1024, 600));        
         frame.setVisible(true); 
     }
     
@@ -153,6 +159,10 @@ public class IDView {
         checkButton.setEnabled(val0);
         checkButton.setSelected(val1);
     }
+       
+    public void setCancelButton(boolean val) {
+        cancelButton.setEnabled(val);
+    }
     
     // Inserts the elements to the thumb panel
     public void addThumbnails (ImageIcon [] imageIcon) {
@@ -180,33 +190,33 @@ public class IDView {
     
     // Returns all of the elements from the thumb panel
     public JToggleButton []  getComponents () {
-        JToggleButton tb [];
+        JToggleButton thumbs [];
         Component[] components = thumbPanel.getComponents();
-        tb = new JToggleButton [components.length];
+        thumbs = new JToggleButton [components.length];
         for (int i=0; i<components.length; i++) {
-            tb[i] = (JToggleButton) components[i];
+            thumbs[i] = (JToggleButton) components[i];
         }
-        return tb;
+        return thumbs;
     }
     
     // Returns urls of all selected elements
     public ArrayList<String> getSelected () {
-        JToggleButton tb [] = getComponents ();
-        ArrayList <String> url = new ArrayList <> ();
-        for (int i=0; i<tb.length; i++) {
-            if(tb[i].isSelected()) {
-                url.add (tb[i].getToolTipText());
+        JToggleButton thumbs [] = getComponents ();
+        ArrayList <String> urls = new ArrayList <> ();
+        for (int i=0; i<thumbs.length; i++) {
+            if(thumbs[i].isSelected()) {
+                urls.add (thumbs[i].getToolTipText());
             }
         }
-        return url;
+        return urls;
     }
     
     public void setAllSelected (boolean state) {
-        JToggleButton tb [] = getComponents ();
-        for (int i=0; i<tb.length; i++) {
+        JToggleButton thumbs [] = getComponents ();
+        for (int i=0; i<thumbs.length; i++) {
             if(state)
-                tb[i].setSelected(true);
-            else tb[i].setSelected(false);
+                thumbs[i].setSelected(true);
+            else thumbs[i].setSelected(false);
         }
     }
     
@@ -215,16 +225,16 @@ public class IDView {
         String savePath=null;
         
         // Instruction to display only directories
-        fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        pathChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         
         // Pops up a "Save File" file chooser dialog
-        int returnVal = fc.showSaveDialog(windowContent);
+        int returnVal = pathChooser.showSaveDialog(windowContent);
         
         // Return value if approve (yes, ok) is chosen
         if (returnVal == JFileChooser.APPROVE_OPTION) {
-            File file = fc.getSelectedFile(); // Returns the selected folder
+            File file = pathChooser.getSelectedFile(); // Returns the selected folder
             savePath=file.getAbsolutePath(); // Returns the absolute path
-            fc.setCurrentDirectory(file);
+            pathChooser.setCurrentDirectory(file);
         }
         return savePath;
     }

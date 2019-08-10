@@ -22,6 +22,7 @@ Void is used as a placeholder.
 class DownloadWorker extends SwingWorker<Void, Void> {
     String savePath;
     ArrayList <String> urls;
+    int count=0;
     
     DownloadWorker(String savePath, ArrayList <String> urls){
         this.savePath=savePath;
@@ -41,7 +42,11 @@ class DownloadWorker extends SwingWorker<Void, Void> {
             fileName = url.getFile(); // Gets the file name of this URL
             destName = savePath + File.separator + fileName.substring(fileName.lastIndexOf("/")+1);
             
-            // System.out.println(destName);
+            // Prevents images with same name from rewriting
+            File f = new File(destName);            
+            if(f.exists()){
+                destName=destName.substring(0,destName.lastIndexOf("."))+" ("+(++count)+")"+destName.substring(destName.lastIndexOf("."));
+            }
             
             // Opens a connection to this URL and returns an InputStream for reading from that connection
             is = url.openStream();

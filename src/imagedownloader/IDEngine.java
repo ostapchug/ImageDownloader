@@ -7,6 +7,7 @@ import java.awt.event.ItemListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import javax.swing.JCheckBox;
 
@@ -27,11 +28,11 @@ class IDEngine implements ActionListener, ItemListener, PropertyChangeListener {
 	parent.setDwnlButton(false);
 	parent.setCheckButton(false,false);
         
-        // Background task for searching images.
         String url=parent.getURL();
 	int minWidth=parent.getMinWidth();
 	int minHeight=parent.getMinHeight();
         
+        // Background task for searching images.
         searchWorker = new SearchWorker (url, minWidth, minHeight);
         searchWorker.addPropertyChangeListener(this);      
         searchWorker.execute(); // Start searching the images in the background
@@ -57,28 +58,35 @@ class IDEngine implements ActionListener, ItemListener, PropertyChangeListener {
                 // Returns true if this task completed
                 if (!searchWorker.isDone()) {
                     parent.setSrchButton(false);
+                    parent.setCancelButton(true);
                     parent.setStatus(" Searching...");
                     parent.setProgress(true);
                 }else{
                     parent.setSrchButton(true);
-                    parent.setStatus(" Done!");
+                    parent.setCancelButton(false);
+                    parent.setStatus(" Done");
                     parent.setProgress(false);
                     try {
                         parent.addThumbnails(searchWorker.get()); // Returns all images we have got
                     }catch(InterruptedException | ExecutionException ex) {
                         System.out.println(ex.getMessage());
+                    }catch (CancellationException ex){
+                        System.out.println(ex.getMessage());
+                        parent.setStatus(" Canceled");
                     }
                 }
             }else{
                 if (!downloadWorker.isDone()) {
                     parent.setSrchButton(false);
                     parent.setDwnlButton(false);
+                    parent.setCancelButton(true);
                     parent.setStatus(" Downloading...");
                     parent.setProgress(true);
                 }else{
                     parent.setSrchButton(true);
                     parent.setDwnlButton(true);
-                    parent.setStatus(" Done!");
+                    parent.setCancelButton(false);
+                    parent.setStatus(" Done");
                     parent.setProgress(false);
                 }
             }
@@ -101,6 +109,12 @@ class IDEngine implements ActionListener, ItemListener, PropertyChangeListener {
                 if (checkButton.isSelected())
                     parent.setAllSelected(true);
                 else parent.setAllSelected(false);
+                break;
+            case "Cancel":
+                if(searchWorker!=null)
+                    searchWorker.cancel(true);
+                if(downloadWorker!=null)
+                    downloadWorker.cancel(true);
                 break;
             default:
                 break;
